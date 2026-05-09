@@ -137,6 +137,7 @@ NSArray* getRendererKeys(BOOL containsDefault) {
     NSMutableArray *array = @[
         @"auto",
         @ RENDERER_NAME_GL4ES,
+        @ RENDERER_NAME_GL4ES_116,
         @ RENDERER_NAME_MTL_ANGLE,
         @ RENDERER_NAME_MOBILEGLUES,
         @ RENDERER_NAME_VK_ZINK
