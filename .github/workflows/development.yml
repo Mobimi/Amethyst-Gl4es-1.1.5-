@@ -135,21 +135,21 @@ jobs:
             BOOTJDK=$(dirname $(which javac))
 
           if [ "${{ matrix.platform_name }}" == "ios" ]; then
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
           elif [ "${{ matrix.platform_name }}" == "tvos" ]; then
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
           else
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
