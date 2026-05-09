@@ -40,68 +40,22 @@ jobs:
         run: |
           echo "SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
 
-      - name: Get JRE8
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build.yml
-          path: depends
-          workflow_conclusion: success
-          allow_forks: false
-          repo: AngelAuraMC/angelauramc-openjdk-build
-          branch: buildjre8
-          name: jre8-ios-aarch64
-
-      - name: Get JRE17
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build.yml
-          path: depends
-          workflow_conclusion: success
-          allow_forks: false
-          repo: AngelAuraMC/angelauramc-openjdk-build
-          branch: buildjre17-21
-          name: jre17-pojav
-
-      - name: Get JRE21
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build.yml
-          path: depends
-          workflow_conclusion: completed
-          allow_forks: false
-          repo: AngelAuraMC/angelauramc-openjdk-build
-          branch: buildjre17-21
-          name: jre21-pojav
-
-      - name: Arrange JRE files for Makefile
+      - name: Download JRE files
         run: |
           mkdir -p depends
-          echo "=== Raw depends/ contents ==="
-          find depends/ -type f | sort
+          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre8-ios-aarch64.zip  -O depends/jre8.zip
+          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre17-ios-aarch64.zip -O depends/jre17.zip
+          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre21-ios-aarch64.zip -O depends/jre21.zip
 
-          # Move tất cả file từ subfolder ra ngoài depends/
-          find depends/ -mindepth 2 -type f | while read f; do
-            fname=$(basename "$f")
-            mv "$f" "depends/$fname"
-            echo "Moved: $fname"
-          done
-
-          echo "=== After move ==="
-          find depends/ -maxdepth 1 -type f | sort
-
-          # Rename về đúng pattern mà Makefile expect
-          for f in depends/jre17-*; do
-            [ -f "$f" ] && mv "$f" "depends/jre17-ios-aarch64.tar.xz" && echo "Renamed jre17: $f" && break
-          done
-          for f in depends/jre21-*; do
-            [ -f "$f" ] && mv "$f" "depends/jre21-ios-aarch64.tar.xz" && echo "Renamed jre21: $f" && break
+          cd depends
+          for ver in 8 17 21; do
+            unzip -q jre${ver}.zip -d jre${ver}-tmp
+            tar cJf jre${ver}-ios-aarch64.tar.xz -C jre${ver}-tmp .
+            rm -rf jre${ver}-tmp jre${ver}.zip
           done
 
           echo "=== Final depends/ ==="
-          find depends/ -maxdepth 1 -type f | sort
+          ls -lh .
 
       - name: Patch CMakeLists to allow undefined UISolarium symbol
         run: |
