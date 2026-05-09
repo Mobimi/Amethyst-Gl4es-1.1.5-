@@ -18,27 +18,74 @@ jobs:
         include:
           - platform: 2
             platform_name: ios
+          - platform: 7
+            platform_name: iossimulator
+          - platform: 8
+            platform_name: tvossimulator
 
-    runs-on: macos-latest
+    runs-on: J316sAP
     steps:
+      - name: Remove work folders
+        run: |
+          echo "before"
+          ls -lah ./
+          rm -rf ./* || true
+          rm -rf ./.??* || true
+          echo "after"
+          ls -lah ./
+
       - name: Checkout repository
         uses: actions/checkout@main
 
       - name: Checkout repository submodules
         run: git submodule update --init --recursive
 
-      - name: Install dependencies
-        run: brew install ldid cmake wget make
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v4
-        with:
-          java-version: '8'
-          distribution: 'zulu'
-
       - name: Get iOS SDK path
         run: |
           echo "SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
+
+      - name: Get gl4es latest commit hash
+        id: gl4es-sha
+        run: echo "::set-output name=sha::$(echo $(git ls-remote https://github.com/PojavLauncherTeam/gl4es-114-extra refs/heads/master | grep -io '^\S*'))"
+        shell: bash
+
+      - name: Cache gl4es
+        uses: actions/cache@main
+        if: false
+        id: gl4es-cache
+        with:
+          path: gl4es/libs
+          key: gl4es-holy-ios-shared-2-${{ steps.gl4es-sha.outputs.sha }}
+
+      - name: Get gl4es
+        if: false && steps.gl4es-cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@main
+        with:
+          repository: 'PojavLauncherTeam/gl4es-114-extra'
+          path: 'gl4es'
+
+      - name: Build gl4es
+        if: false && steps.gl4es-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          cd gl4es
+          git config user.email "github-actions@users.noreply.github.com"
+          git config user.name "github-actions"
+          export PATH=/opt/procursus/bin:$PATH
+          wget https://github.com/leetal/ios-cmake/raw/master/ios.toolchain.cmake
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DDEFAULT_ES=2 \
+            -DNOX11=ON -DNOEGL=OFF -DSTATICLIB=OFF -DPLATFORM=OS64 \
+            -DCMAKE_C_FLAGS=-Wno-error=implicit-function-declaration
+          cmake --build build --config RelWithDebInfo --target GL
+          cp -R lib/libGL.dylib ../Natives/resources/Frameworks/libgl4es_114.dylib
+
+      - name: Push gl4es
+        if: false && github.event != 'pull_request' && github.ref_name == 'main' && steps.gl4es-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          git add Natives/resources/Frameworks/libgl4es_114.dylib
+          git commit -am "CI: Update gl4es"
+          git push
 
       - name: Download JRE files
         run: |
@@ -51,7 +98,7 @@ jobs:
           for ver in 8 17 21; do
             unzip -q jre${ver}.zip -d jre${ver}-tmp
 
-            # Nếu zip chứa một subfolder duy nhất thì đi vào trong đó
+            # Xử lý trường hợp zip chứa subfolder thay vì file trực tiếp
             INNER=$(find jre${ver}-tmp -maxdepth 1 -mindepth 1 -type d | head -1)
             if [ -n "$INNER" ] && [ ! -f "jre${ver}-tmp/release" ]; then
               SOURCE="$INNER"
@@ -59,7 +106,9 @@ jobs:
               SOURCE="jre${ver}-tmp"
             fi
 
+            # Xóa libawt_xawt.dylib để tránh xung đột với bản của Amethyst
             rm -f "$SOURCE/lib/libawt_xawt.dylib"
+
             tar cJf jre${ver}-ios-aarch64.tar.xz -C "$SOURCE" .
             rm -rf jre${ver}-tmp jre${ver}.zip
           done
@@ -77,20 +126,34 @@ jobs:
 
       - name: Build for ${{ matrix.platform_name }}
         run: |
-          export PATH=/opt/homebrew/opt/make/libexec/gnubin:$PATH
-          export SLIMMED=1
-          make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+          export PATH=/opt/homebrew/bin:$PATH
+          export RUNNER=1 SLIMMED=1
+
+          # Build Java tuần tự trước để tránh race condition empty class files
+          gmake -j1 java PLATFORM=${{ matrix.platform }} \
             SDKPATH=${{ env.SDKPATH }} \
-            RELEASE=1 \
-            RUNNER=1 \
-            BOOTJDK=$(dirname $(which javac)) \
-            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-          make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
-            SDKPATH=${{ env.SDKPATH }} \
-            RELEASE=1 \
-            RUNNER=1 \
-            BOOTJDK=$(dirname $(which javac)) \
-            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+            BOOTJDK=$(dirname $(which javac))
+
+          if [ "${{ matrix.platform_name }}" == "ios" ]; then
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+              SDKPATH=${{ env.SDKPATH }} \
+              BOOTJDK=$(dirname $(which javac)) \
+              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+              SDKPATH=${{ env.SDKPATH }} \
+              BOOTJDK=$(dirname $(which javac)) \
+              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+          elif [ "${{ matrix.platform_name }}" == "tvos" ]; then
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+              SDKPATH=${{ env.SDKPATH }} \
+              BOOTJDK=$(dirname $(which javac)) \
+              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+          else
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+              SDKPATH=${{ env.SDKPATH }} \
+              BOOTJDK=$(dirname $(which javac)) \
+              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+          fi
 
       - name: Upload regular ipa
         uses: actions/upload-artifact@main
