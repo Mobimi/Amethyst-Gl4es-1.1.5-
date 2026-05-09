@@ -40,11 +40,11 @@ jobs:
       - name: Checkout repository submodules
         run: git submodule update --init --recursive
 
-      - name: Setup Java 8
+      - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
-         distribution: 'temurin' # Bản phân phối Java phổ biến và ổn định
-         java-version: '8'       # Chỉ định cài đặt JDK 8
+          java-version: '8'
+          distribution: 'zulu'
 
       - name: Get iOS SDK path
         run: |
