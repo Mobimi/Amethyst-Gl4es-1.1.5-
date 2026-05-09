@@ -36,7 +36,8 @@ jobs:
             SDKPATH=${{ env.SDKPATH }} \
             RELEASE=1 \
             RUNNER=1 \
-            BOOTJDK=$(dirname $(which javac))
+            BOOTJDK=$(dirname $(which javac)) \
+            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-undefined,dynamic_lookup"
 
       - name: Upload IPA
         uses: actions/upload-artifact@main
