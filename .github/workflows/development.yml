@@ -79,17 +79,29 @@ jobs:
       - name: Arrange JRE files for Makefile
         run: |
           mkdir -p depends
-          if [ -d "depends/jre8-ios-aarch64" ]; then
-            mv depends/jre8-ios-aarch64/*.tar.xz depends/ 2>/dev/null || true
-          fi
-          if [ -d "depends/jre17-pojav" ]; then
-            mv depends/jre17-pojav/*.tar.xz depends/ 2>/dev/null || true
-          fi
-          if [ -d "depends/jre21-pojav" ]; then
-            mv depends/jre21-pojav/*.tar.xz depends/ 2>/dev/null || true
-          fi
-          echo "=== Final depends/ contents ==="
-          find depends/ -maxdepth 2 -type f
+          echo "=== Raw depends/ contents ==="
+          find depends/ -type f | sort
+
+          # Move tất cả file từ subfolder ra ngoài depends/
+          find depends/ -mindepth 2 -type f | while read f; do
+            fname=$(basename "$f")
+            mv "$f" "depends/$fname"
+            echo "Moved: $fname"
+          done
+
+          echo "=== After move ==="
+          find depends/ -maxdepth 1 -type f | sort
+
+          # Rename về đúng pattern mà Makefile expect
+          for f in depends/jre17-*; do
+            [ -f "$f" ] && mv "$f" "depends/jre17-ios-aarch64.tar.xz" && echo "Renamed jre17: $f" && break
+          done
+          for f in depends/jre21-*; do
+            [ -f "$f" ] && mv "$f" "depends/jre21-ios-aarch64.tar.xz" && echo "Renamed jre21: $f" && break
+          done
+
+          echo "=== Final depends/ ==="
+          find depends/ -maxdepth 1 -type f | sort
 
       - name: Patch CMakeLists to allow undefined UISolarium symbol
         run: |
