@@ -25,10 +25,9 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Get iOS SDK
+      - name: Get iOS SDK path
         run: |
-          git clone --depth 1 https://github.com/theos/sdks
-          echo "SDKPATH=$(pwd)/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
+          echo "SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
 
       - name: Build
         run: |
