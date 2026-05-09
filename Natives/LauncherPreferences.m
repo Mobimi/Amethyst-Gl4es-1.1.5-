@@ -156,6 +156,7 @@ NSArray* getRendererNames(BOOL containsDefault) {
     array = @[
         localize(@"preference.title.renderer.debug.auto", nil),
         localize(@"preference.title.renderer.debug.gl4es", nil),
+        localize(@"preference.title.renderer.debug.gl4es116", nil),
         localize(@"preference.title.renderer.debug.angle", nil),
         localize(@"preference.title.renderer.debug.mg", nil),
         localize(@"preference.title.renderer.debug.zink", nil)
