@@ -50,7 +50,17 @@ jobs:
           cd depends
           for ver in 8 17 21; do
             unzip -q jre${ver}.zip -d jre${ver}-tmp
-            tar cJf jre${ver}-ios-aarch64.tar.xz -C jre${ver}-tmp .
+
+            # Nếu zip chứa một subfolder duy nhất thì đi vào trong đó
+            INNER=$(find jre${ver}-tmp -maxdepth 1 -mindepth 1 -type d | head -1)
+            if [ -n "$INNER" ] && [ ! -f "jre${ver}-tmp/release" ]; then
+              SOURCE="$INNER"
+            else
+              SOURCE="jre${ver}-tmp"
+            fi
+
+            rm -f "$SOURCE/lib/libawt_xawt.dylib"
+            tar cJf jre${ver}-ios-aarch64.tar.xz -C "$SOURCE" .
             rm -rf jre${ver}-tmp jre${ver}.zip
           done
 
