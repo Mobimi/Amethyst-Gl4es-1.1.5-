@@ -29,6 +29,14 @@ jobs:
         run: |
           echo "SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
 
+      - name: Patch CMakeLists to allow undefined UISolarium symbol
+        run: |
+          CMAKE_FILE="Natives/CMakeLists.txt"
+          if ! grep -q "UISolariumEnabled" "$CMAKE_FILE"; then
+            echo "" >> "$CMAKE_FILE"
+            echo "target_link_options(AngelAuraAmethyst PRIVATE -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup)" >> "$CMAKE_FILE"
+          fi
+
       - name: Build
         run: |
           make dsym package \
