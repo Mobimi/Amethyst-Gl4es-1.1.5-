@@ -93,12 +93,18 @@ jobs:
           git commit -am "CI: Update gl4es"
           git push
 
-      - name: Download JRE files
+            - name: Download JRE files
         run: |
           mkdir -p depends
-          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre8-ios-aarch64.zip  -O depends/jre8.zip
-          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre17-ios-aarch64.zip -O depends/jre17.zip
-          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre21-ios-aarch64.zip -O depends/jre21.zip
+          
+          echo "Bắt đầu tải JRE 8..."
+          wget --timeout=15 --tries=3 https://crystall1ne.dev/cdn/amethyst-ios/jre8-ios-aarch64.zip  -O depends/jre8.zip
+          
+          echo "Bắt đầu tải JRE 17..."
+          wget --timeout=15 --tries=3 https://crystall1ne.dev/cdn/amethyst-ios/jre17-ios-aarch64.zip -O depends/jre17.zip
+          
+          echo "Bắt đầu tải JRE 21..."
+          wget --timeout=15 --tries=3 https://crystall1ne.dev/cdn/amethyst-ios/jre21-ios-aarch64.zip -O depends/jre21.zip
 
           cd depends
           for ver in 8 17 21; do
