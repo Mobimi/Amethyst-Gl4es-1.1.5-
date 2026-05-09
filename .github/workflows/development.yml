@@ -130,7 +130,7 @@ jobs:
           export RUNNER=1 SLIMMED=1
 
           # Build Java tuần tự trước để tránh race condition empty class files
-          gmake -j1 java PLATFORM=${{ matrix.platform }} \
+          make -j1 java PLATFORM=${{ matrix.platform }} \
             SDKPATH=${{ env.SDKPATH }} \
             BOOTJDK=$(dirname $(which javac))
 
