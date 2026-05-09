@@ -76,12 +76,20 @@ jobs:
           branch: buildjre17-21
           name: jre21-pojav
 
-      - name: Debug depends folder
+      - name: Arrange JRE files for Makefile
         run: |
-          echo "=== Contents of depends/ ==="
-          ls -lah depends/
-          echo "=== Recursive ==="
-          find depends/ -type f
+          mkdir -p depends
+          if [ -d "depends/jre8-ios-aarch64" ]; then
+            mv depends/jre8-ios-aarch64/*.tar.xz depends/ 2>/dev/null || true
+          fi
+          if [ -d "depends/jre17-pojav" ]; then
+            mv depends/jre17-pojav/*.tar.xz depends/ 2>/dev/null || true
+          fi
+          if [ -d "depends/jre21-pojav" ]; then
+            mv depends/jre21-pojav/*.tar.xz depends/ 2>/dev/null || true
+          fi
+          echo "=== Final depends/ contents ==="
+          find depends/ -maxdepth 2 -type f
 
       - name: Patch CMakeLists to allow undefined UISolarium symbol
         run: |
