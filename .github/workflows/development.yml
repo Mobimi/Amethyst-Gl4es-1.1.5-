@@ -62,7 +62,7 @@ jobs:
           allow_forks: false
           repo: AngelAuraMC/angelauramc-openjdk-build
           branch: buildjre17-21
-          name: jre17-ios-aarch64
+          name: jre17-pojav
 
       - name: Get JRE21
         uses: dawidd6/action-download-artifact@v2
@@ -74,8 +74,8 @@ jobs:
           allow_forks: false
           repo: AngelAuraMC/angelauramc-openjdk-build
           branch: buildjre17-21
-          name: jre21-ios-aarch64
-
+          name: jre21-pojav
+          
       - name: Patch CMakeLists to allow undefined UISolarium symbol
         run: |
           CMAKE_FILE="Natives/CMakeLists.txt"
