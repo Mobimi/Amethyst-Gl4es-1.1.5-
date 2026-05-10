@@ -83,31 +83,35 @@ jobs:
           git commit -am "CI: Update gl4es"
           git push
 
-      - name: Download JRE files
+      - name: Prepare JRE files for Makefile
         run: |
           mkdir -p depends
-          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre8-ios-aarch64.zip  -O depends/jre8.zip
-          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre17-ios-aarch64.zip -O depends/jre17.zip
-          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre21-ios-aarch64.zip -O depends/jre21.zip
-
-          cd depends
           for ver in 8 17 21; do
-            unzip -q jre${ver}.zip -d jre${ver}-tmp
+            wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre${ver}-ios-aarch64.zip \
+              -O depends/jre${ver}.zip
 
-            INNER=$(find jre${ver}-tmp -maxdepth 1 -mindepth 1 -type d | head -1)
-            if [ -n "$INNER" ] && [ ! -f "jre${ver}-tmp/release" ]; then
-              SOURCE="$INNER"
+            unzip -q depends/jre${ver}.zip -d depends/jre${ver}-extract
+
+            # Nếu zip chứa sẵn tar.xz bên trong thì dùng luôn
+            TARXZ=$(find depends/jre${ver}-extract -name "*.tar.xz" | head -1)
+            if [ -n "$TARXZ" ]; then
+              cp "$TARXZ" depends/jre${ver}-ios-aarch64.tar.xz
             else
-              SOURCE="jre${ver}-tmp"
+              # Zip chứa JRE trực tiếp, cần repack thành tar.xz
+              INNER=$(find depends/jre${ver}-extract -maxdepth 1 -mindepth 1 -type d | head -1)
+              if [ -n "$INNER" ] && [ ! -f "depends/jre${ver}-extract/release" ]; then
+                SOURCE="$INNER"
+              else
+                SOURCE="depends/jre${ver}-extract"
+              fi
+              tar cJf depends/jre${ver}-ios-aarch64.tar.xz -C "$SOURCE" .
             fi
 
-            rm -f "$SOURCE/lib/libawt_xawt.dylib"
-            tar cJf jre${ver}-ios-aarch64.tar.xz -C "$SOURCE" .
-            rm -rf jre${ver}-tmp jre${ver}.zip
+            rm -rf depends/jre${ver}-extract depends/jre${ver}.zip
           done
 
           echo "=== Final depends/ ==="
-          ls -lh .
+          ls -lh depends/
 
       - name: Patch CMakeLists to allow undefined UISolarium symbol
         run: |
@@ -122,18 +126,21 @@ jobs:
           export PATH=/opt/homebrew/opt/make/libexec/gnubin:$PATH
           export RUNNER=1 SLIMMED=1
 
-          make -j1 java PLATFORM=${{ matrix.platform }} \
+          # Build Java tuần tự trước để tránh race condition empty class files
+          make java PLATFORM=${{ matrix.platform }} \
             SDKPATH=${{ env.SDKPATH }} \
-            BOOTJDK=$(dirname $(which javac))
+            BOOTJDK=$(dirname $(which javac)) \
+            RUNNER=1 JOBS=1
 
+          # Build toàn bộ song song
           make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
             SDKPATH=${{ env.SDKPATH }} \
             BOOTJDK=$(dirname $(which javac)) \
-            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+            RUNNER=1
           make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
             SDKPATH=${{ env.SDKPATH }} \
             BOOTJDK=$(dirname $(which javac)) \
-            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+            RUNNER=1
 
       - name: Upload regular ipa
         uses: actions/upload-artifact@main
