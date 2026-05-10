@@ -21,20 +21,20 @@ jobs:
 
     runs-on: macos-latest
     steps:
-      - name: Remove work folders
-        run: |
-          echo "before"
-          ls -lah ./
-          rm -rf ./* || true
-          rm -rf ./.??* || true
-          echo "after"
-          ls -lah ./
-
       - name: Checkout repository
         uses: actions/checkout@main
 
       - name: Checkout repository submodules
         run: git submodule update --init --recursive
+
+      - name: Install dependencies
+        run: brew install ldid cmake wget make
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'zulu'
 
       - name: Get iOS SDK path
         run: |
@@ -119,33 +119,21 @@ jobs:
 
       - name: Build for ${{ matrix.platform_name }}
         run: |
-          export PATH=/opt/homebrew/bin:$PATH
+          export PATH=/opt/homebrew/opt/make/libexec/gnubin:$PATH
           export RUNNER=1 SLIMMED=1
 
-          gmake -j1 java PLATFORM=${{ matrix.platform }} \
+          make -j1 java PLATFORM=${{ matrix.platform }} \
             SDKPATH=${{ env.SDKPATH }} \
             BOOTJDK=$(dirname $(which javac))
 
-          if [ "${{ matrix.platform_name }}" == "ios" ]; then
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
-              SDKPATH=${{ env.SDKPATH }} \
-              BOOTJDK=$(dirname $(which javac)) \
-              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
-              SDKPATH=${{ env.SDKPATH }} \
-              BOOTJDK=$(dirname $(which javac)) \
-              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-          elif [ "${{ matrix.platform_name }}" == "tvos" ]; then
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
-              SDKPATH=${{ env.SDKPATH }} \
-              BOOTJDK=$(dirname $(which javac)) \
-              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-          else
-            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
-              SDKPATH=${{ env.SDKPATH }} \
-              BOOTJDK=$(dirname $(which javac)) \
-              CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-          fi
+          make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+            SDKPATH=${{ env.SDKPATH }} \
+            BOOTJDK=$(dirname $(which javac)) \
+            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
+          make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+            SDKPATH=${{ env.SDKPATH }} \
+            BOOTJDK=$(dirname $(which javac)) \
+            CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
 
       - name: Upload regular ipa
         uses: actions/upload-artifact@main
