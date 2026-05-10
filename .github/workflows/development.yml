@@ -18,12 +18,8 @@ jobs:
         include:
           - platform: 2
             platform_name: ios
-          - platform: 7
-            platform_name: iossimulator
-          - platform: 8
-            platform_name: tvossimulator
 
-    runs-on: macos-latest
+    runs-on: J316sAP
     steps:
       - name: Remove work folders
         run: |
@@ -39,12 +35,6 @@ jobs:
 
       - name: Checkout repository submodules
         run: git submodule update --init --recursive
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v4
-        with:
-          java-version: '8'
-          distribution: 'zulu'
 
       - name: Get iOS SDK path
         run: |
@@ -93,24 +83,17 @@ jobs:
           git commit -am "CI: Update gl4es"
           git push
 
-            - name: Download JRE files
+      - name: Download JRE files
         run: |
           mkdir -p depends
-          
-          echo "Bắt đầu tải JRE 8..."
-          wget --timeout=15 --tries=3 https://crystall1ne.dev/cdn/amethyst-ios/jre8-ios-aarch64.zip  -O depends/jre8.zip
-          
-          echo "Bắt đầu tải JRE 17..."
-          wget --timeout=15 --tries=3 https://crystall1ne.dev/cdn/amethyst-ios/jre17-ios-aarch64.zip -O depends/jre17.zip
-          
-          echo "Bắt đầu tải JRE 21..."
-          wget --timeout=15 --tries=3 https://crystall1ne.dev/cdn/amethyst-ios/jre21-ios-aarch64.zip -O depends/jre21.zip
+          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre8-ios-aarch64.zip  -O depends/jre8.zip
+          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre17-ios-aarch64.zip -O depends/jre17.zip
+          wget -q https://crystall1ne.dev/cdn/amethyst-ios/jre21-ios-aarch64.zip -O depends/jre21.zip
 
           cd depends
           for ver in 8 17 21; do
             unzip -q jre${ver}.zip -d jre${ver}-tmp
 
-            # Xử lý trường hợp zip chứa subfolder thay vì file trực tiếp
             INNER=$(find jre${ver}-tmp -maxdepth 1 -mindepth 1 -type d | head -1)
             if [ -n "$INNER" ] && [ ! -f "jre${ver}-tmp/release" ]; then
               SOURCE="$INNER"
@@ -118,9 +101,7 @@ jobs:
               SOURCE="jre${ver}-tmp"
             fi
 
-            # Xóa libawt_xawt.dylib để tránh xung đột với bản của Amethyst
             rm -f "$SOURCE/lib/libawt_xawt.dylib"
-
             tar cJf jre${ver}-ios-aarch64.tar.xz -C "$SOURCE" .
             rm -rf jre${ver}-tmp jre${ver}.zip
           done
@@ -141,27 +122,26 @@ jobs:
           export PATH=/opt/homebrew/bin:$PATH
           export RUNNER=1 SLIMMED=1
 
-          # Build Java tuần tự trước để tránh race condition empty class files
-          make -j1 java PLATFORM=${{ matrix.platform }} \
+          gmake -j1 java PLATFORM=${{ matrix.platform }} \
             SDKPATH=${{ env.SDKPATH }} \
             BOOTJDK=$(dirname $(which javac))
 
           if [ "${{ matrix.platform_name }}" == "ios" ]; then
-            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
-            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
           elif [ "${{ matrix.platform_name }}" == "tvos" ]; then
-            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} TROLLSTORE_JIT_ENT=1 \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
           else
-            make -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
+            gmake -j$(sysctl -n hw.ncpu) dsym package PLATFORM=${{ matrix.platform }} \
               SDKPATH=${{ env.SDKPATH }} \
               BOOTJDK=$(dirname $(which javac)) \
               CMAKE_EXE_LINKER_FLAGS="-Wl,-w -Wl,-U,__UISolariumEnabled -Wl,-undefined,dynamic_lookup"
