@@ -123,6 +123,8 @@ void gl_make_current(gl_render_window_t* bundle) {
 
     if(handle.eglMakeCurrent(g_EglDisplay, bundle->surface, bundle->surface, bundle->context)) {
         currentBundle = (basic_render_window_t *)bundle;
+        void (*init_gl4es)(void) = dlsym(RTLD_DEFAULT, "initialize_gl4es");
+        if (init_gl4es) init_gl4es();
     } else {
         NSLog(@"EGLBridge: eglMakeCurrent returned with error: 0x%x", handle.eglGetError());
     }
