@@ -1,0 +1,51 @@
+name: Inspect Native Renderer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  inspect:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Inspect renderer dylibs
+        run: |
+          cd Natives/resources/Frameworks
+
+          echo "=== Files ==="
+          ls -lh libgl4es_114.dylib libgl4es_116.dylib liblwjgl*.dylib || true
+
+          echo "=== SHA256 ==="
+          shasum -a 256 libgl4es_114.dylib libgl4es_116.dylib liblwjgl*.dylib || true
+
+          echo "=== otool ==="
+          for f in libgl4es_114.dylib libgl4es_116.dylib liblwjgl*.dylib; do
+            echo "===== $f ====="
+            file "$f" || true
+            otool -L "$f" || true
+          done
+
+          echo "=== GLFW/LWJGL symbols ==="
+          for f in liblwjgl*.dylib; do
+            echo "===== $f ====="
+            nm -a "$f" | grep -E "glfwCreateWindow|nglfwCreateContext|glfwGetProcAddress|glfwMakeContextCurrent|dlsym|dlopen|GetProcAddress|OpenGL|Context" | head -200 || true
+          done
+
+          echo "=== GL4ES 114 key symbols ==="
+          nm -a libgl4es_114.dylib | grep -E "_gl4es_GetProcAddress|_gl4es_glGetString|_glGetString|_glfw|_glClear|_glViewport" | head -200 || true
+
+          echo "=== GL4ES 116 key symbols ==="
+          nm -a libgl4es_116.dylib | grep -E "_gl4es_GetProcAddress|_gl4es_glGetString|_glGetString|_glfw|_glClear|_glViewport" | head -200 || true
+
+          echo "=== Strings proc/context ==="
+          for f in libgl4es_114.dylib libgl4es_116.dylib liblwjgl*.dylib; do
+            echo "===== $f ====="
+            strings "$f" | grep -Ei "glfwCreateWindow|nglfwCreateContext|glfwGetProcAddress|gl4es_GetProcAddress|GetProcAddress|dlopen|dlsym|libgl4es|org.lwjgl.opengl.libname|RENDERER|context" | head -200 || true
+          done
