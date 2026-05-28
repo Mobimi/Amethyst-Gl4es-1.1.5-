@@ -1,0 +1,71 @@
+name: Inspect LWJGL GLFW Binding
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  inspect:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Find LWJGL and GLFW files
+        run: |
+          echo "=== Find lwjgl/glfw files ==="
+          find . \
+            -iname "*lwjgl*" -o \
+            -iname "*glfw*" -o \
+            -iname "*opengl*" \
+            | sort
+
+          echo "=== Search source/text for GLFW context ==="
+          grep -R \
+            "nglfwCreateContext\|glfwCreateContext\|glfwCreateWindow\|glfwGetProcAddress\|FunctionProvider\|GLFW.getFunctionProvider\|org.lwjgl.glfw" \
+            -n . 2>/dev/null | head -500 || true
+
+      - name: Inspect native dylibs
+        run: |
+          cd Natives/resources/Frameworks || exit 0
+
+          echo "=== Native dylibs ==="
+          ls -lh *.dylib || true
+
+          echo "=== GLFW symbols in dylibs ==="
+          for f in *.dylib; do
+            echo "===== $f ====="
+            nm -a "$f" 2>/dev/null | grep -E "glfwCreateWindow|glfwCreateContext|glfwGetProcAddress|nglfwCreateContext|Java_org_lwjgl_glfw|dlsym|dlopen" | head -200 || true
+          done
+
+          echo "=== GLFW strings in dylibs ==="
+          for f in *.dylib; do
+            echo "===== $f ====="
+            strings "$f" | grep -Ei "glfwCreateWindow|glfwCreateContext|glfwGetProcAddress|nglfwCreateContext|org.lwjgl.glfw|FunctionProvider|dlsym|dlopen" | head -200 || true
+          done
+
+      - name: Inspect jars/classes
+        run: |
+          echo "=== Find jars ==="
+          find . -name "*.jar" | sort | head -200
+
+          mkdir -p /tmp/jarinspect
+
+          for j in $(find . -name "*.jar" | grep -Ei "lwjgl|glfw|opengl"); do
+            echo "===== JAR $j ====="
+            jar tf "$j" | grep -Ei "org/lwjgl/glfw/GLFW|org/lwjgl/system/JNI|FunctionProvider|GLFW.class" | head -100 || true
+
+            rm -rf /tmp/jarinspect/*
+            unzip -q "$j" -d /tmp/jarinspect || true
+
+            find /tmp/jarinspect -type f | grep -Ei "GLFW.class|JNI.class|FunctionProvider" | head -50 || true
+
+            if find /tmp/jarinspect -type f | grep -q "GLFW.class"; then
+              echo "--- strings GLFW.class ---"
+              find /tmp/jarinspect -type f -name "GLFW.class" -print -exec strings {} \; | grep -Ei "nglfwCreateContext|glfwCreateContext|glfwCreateWindow|glfwGetProcAddress|CreateContext" | head -200 || true
+            fi
+          done
