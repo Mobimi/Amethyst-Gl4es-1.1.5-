@@ -51,39 +51,51 @@ int pojavInit(BOOL useStackQueue) {
 int pojavInitOpenGL() {
     NSString *renderer = NSProcessInfo.processInfo.environment[@"POJAV_RENDERER"];
     BOOL isAuto = [renderer isEqualToString:@"auto"];
+
     if (isAuto || [renderer isEqualToString:@ RENDERER_NAME_GL4ES]) {
-        // At this point, if renderer is still auto (unspecified major version), pick gl4es
+        // Default GL4ES renderer
         renderer = @ RENDERER_NAME_GL4ES;
         setenv("POJAV_RENDERER", renderer.UTF8String, 1);
         set_gl_bridge_tbl();
+
+    } else if ([renderer isEqualToString:@ RENDERER_NAME_GL4ES_116]) {
+        // GL4ES 1.1.6 renderer: use the same GL bridge as GL4ES 1.1.4
+        renderer = @ RENDERER_NAME_GL4ES_116;
+        setenv("POJAV_RENDERER", renderer.UTF8String, 1);
+        set_gl_bridge_tbl();
+
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGLUES]) {
         renderer = @ RENDERER_NAME_MOBILEGLUES;
         setenv("POJAV_RENDERER", renderer.UTF8String, 1);
         set_gl_bridge_tbl();
+
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MTL_ANGLE]) {
         set_gl_bridge_tbl();
+
     } else if ([renderer hasPrefix:@"libOSMesa"]) {
-        setenv("GALLIUM_DRIVER","zink",1);
+        setenv("GALLIUM_DRIVER", "zink", 1);
         set_osm_bridge_tbl();
     }
+
     JNI_LWJGL_changeRenderer(renderer.UTF8String);
+
     // Preload renderer library
     dlopen([NSString stringWithFormat:@"@rpath/%@", renderer].UTF8String, RTLD_GLOBAL);
 
     return !br_init();
-    //return 0;
 }
 
 void pojavSetWindowHint(int hint, int value) {
     if (hint == GLFW_CLIENT_API) {
         clientAPI = value;
-    } else if (strcmp(getenv("POJAV_RENDERER"), "auto")==0 && hint == GLFW_CONTEXT_VERSION_MAJOR) {
+    } else if (strcmp(getenv("POJAV_RENDERER"), "auto") == 0 && hint == GLFW_CONTEXT_VERSION_MAJOR) {
         switch (value) {
             case 1:
             case 2:
                 setenv("POJAV_RENDERER", RENDERER_NAME_GL4ES, 1);
                 JNI_LWJGL_changeRenderer(RENDERER_NAME_GL4ES);
                 break;
+
             // case 4: use Zink?
             default:
                 setenv("POJAV_RENDERER", RENDERER_NAME_MOBILEGLUES, 1);
