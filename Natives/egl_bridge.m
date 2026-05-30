@@ -22,12 +22,33 @@
 int clientAPI;
 
 void JNI_LWJGL_changeRenderer(const char* value_c) {
+
     JNIEnv *env;
+
     (*runtimeJavaVMPtr)->GetEnv(runtimeJavaVMPtr, (void **)&env, JNI_VERSION_1_4);
+
+    const char *lwjgl_value = value_c;
+
+    /*
+     * GL4ES 1.1.6 is preloaded by native Amethyst below with dlopen("@rpath/...").
+     * Do not let LWJGL/MacOSXLibraryDL load libgl4es_116.dylib directly again.
+     * It can fail on iOS even after native preload.
+     *
+     * Keep POJAV_RENDERER as libgl4es_116.dylib, but route LWJGL's
+     * org.lwjgl.opengl.libname to the stable GL4ES 1.1.4 library name.
+     */
+    if (value_c && strcmp(value_c, RENDERER_NAME_GL4ES_116) == 0) {
+        lwjgl_value = RENDERER_NAME_GL4ES;
+    }
+
     jstring key = (*env)->NewStringUTF(env, "org.lwjgl.opengl.libname");
-    jstring value = (*env)->NewStringUTF(env, value_c);
+
+    jstring value = (*env)->NewStringUTF(env, lwjgl_value);
+
     jclass clazz = (*env)->FindClass(env, "java/lang/System");
+
     jmethodID method = (*env)->GetStaticMethodID(env, clazz, "setProperty", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
+
     (*env)->CallStaticObjectMethod(env, clazz, method, key, value);
 }
 
